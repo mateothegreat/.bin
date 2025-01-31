@@ -16,7 +16,7 @@ parser_definition() {
 
 eval "$(getoptions parser_definition) exit 1"
 
-if [ "$1" = "probe" ]; then
+if [ "$REST" = "probe" ]; then
   if [ -n "$VERBOSE" ]; then
     ffprobe -rtsp_transport tcp "$1" -v error -print_format json -show_format -show_streams | jq '.streams[] | {codec_name, codec_long_name, profile_name, width, height, r_frame_rate, avg_frame_rate, duration, bit_rate, nb_frames, nb_read_frames, nb_read_packets, nb_read_bytes, nb_write_frames, nb_write_packets, nb_write_bytes, start_pts, start_time, duration_ts, duration_time, disposition}'
   else
