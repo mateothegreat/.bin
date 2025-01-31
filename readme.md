@@ -4,6 +4,10 @@
 
 ## Example
 
+The `ff` command is a wrapper around `ffprobe` and `ffmpeg` to slice and dice video streams.
+
+> See [ff](ff) for the particulars.
+
 ```bash
 Usage: ff [global options...] [command] [options...] [arguments...]
 Options:
