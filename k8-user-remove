@@ -1,0 +1,26 @@
+#!/bin/bash
+set -eu
+
+. .lib/getoptions/lib/getoptions_help.sh
+. .lib/getoptions/lib/getoptions_abbr.sh
+. .lib/getoptions/lib/getoptions_base.sh
+
+parser_definition() {
+  setup REST help:usage -- "Usage: example.sh [options]... [arguments]..." ''
+  msg -- 'Options:'
+  param NAMESPACE -n --namespace validate:validate_safe_name init:="default" -- "namespace"
+  param USER -u --user validate:validate_safe_name -- "user"
+
+  disp :usage -h --help
+  disp VERSION --version
+}
+
+validate_safe_name() {
+  [[ "$OPTARG" =~ ^[a-zA-Z0-9-]+$ ]] || return 1
+}
+
+eval "$(getoptions parser_definition) exit 1"
+
+kubectl delete clusterrolebinding $USER-cluster-admin --ignore-not-found
+kubectl delete serviceaccount $USER -n $NAMESPACE --ignore-not-found
+kubectl delete secret $USER -n $NAMESPACE --ignore-not-found

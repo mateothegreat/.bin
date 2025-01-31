@@ -1,0 +1,131 @@
+#!/bin/bash
+set -eu
+
+. .lib/getoptions/lib/getoptions_help.sh
+. .lib/getoptions/lib/getoptions_abbr.sh
+. .lib/getoptions/lib/getoptions_base.sh
+
+parser_definition() {
+  parray() { param ":append_array $@"; }
+
+  setup REST help:usage -- "Usage: example.sh [options]... [arguments]..." ''
+  msg -- 'Options:'
+  param NAMESPACE -n --namespace validate:validate_safe_name init:="default" -- "namespace"
+  param USER -u --user validate:validate_safe_name -- "user"
+  parray CLUSTER_ROLES -c --cluster-role init:'CLUSTER_ROLES=()' var:CLUSTER_ROLES
+  parray ROLES -r --role init:'ROLES=()' var:ROLES
+  param ENDPOINT -e --endpoint init:="$(kubectl config view --minify --output jsonpath="{.clusters[*].cluster.server}")" -- "cluster url"
+
+  disp :usage -h --help
+  disp VERSION --version
+}
+
+append_array() {
+  eval "$1+=(\"\$OPTARG\")"
+}
+
+validate_min_number() {
+  # check length of array
+  for i in ${OPTARG[@]}; do
+    echo "i: $i"
+  done
+  if [ ${#OPTARG[@]} -lt 1 ]; then
+    echo "ROLES array is empty"
+    return 1
+  fi
+}
+
+validate_safe_name() {
+  [[ "$OPTARG" =~ ^[a-zA-Z0-9-]+$ ]] || return 1
+}
+
+disp_array() {
+  echo "$1:"
+  shift
+  i=0
+  while [ $# -gt 0 ] && i=$((i + 1)); do
+    echo "  $i: $1"
+    shift
+  done
+}
+
+eval "$(getoptions parser_definition) exit 1"
+
+if [ ${#ROLES[@]} -lt 1 ] && [ ${#CLUSTER_ROLES[@]} -lt 1 ]; then
+  echo "Must provide at least one clusterrole or role (-r <role> or -c <cluster_role> or -r <role> -c <cluster_role> ...)"
+  exit 1
+fi
+
+if [ -z "$USER" ]; then
+  echo "Must provide a user name (-u <user>)"
+  exit 1
+fi
+
+if [ -z "$(kubectl get sa $USER -n $NAMESPACE -o jsonpath='{.metadata.name}')" ]; then
+  kubectl create serviceaccount $USER -n $NAMESPACE
+else
+  echo "serviceacccount for user "$USER" already exists"
+fi
+
+kubectl apply -f - <<EOF
+    apiVersion: v1
+    kind: Secret
+    type: kubernetes.io/service-account-token
+    metadata:
+      name: $USER
+      namespace: $NAMESPACE
+      annotations:
+        kubernetes.io/service-account.name: $USER
+EOF
+
+if [ ${#CLUSTER_ROLES[@]} -gt 0 ]; then
+  for cluster_role in "${CLUSTER_ROLES[@]}"; do
+    if [ -z "$(kubectl get clusterrolebinding $USER-$cluster_role -o jsonpath='{.metadata.name}')" ]; then
+      kubectl create clusterrolebinding $USER-$cluster_role --clusterrole=$cluster_role --serviceaccount=$NAMESPACE:$USER
+    else
+      echo "clusterrolebinding "$USER-$cluster_role" already exists, patching..."
+      kubectl patch clusterrolebinding $USER-$cluster_role --type='json' -p='[{"op": "add", "path": "/subjects/-", "value": {"kind": "ServiceAccount", "name": '$USER', "namespace": '$NAMESPACE' } }]'
+    fi
+  done
+fi
+
+if [ ${#ROLES[@]} -gt 0 ]; then
+  for role in "${ROLES[@]}"; do
+    if [ -z "$(kubectl get rolebinding $USER-$role -o jsonpath='{.metadata.name}')" ]; then
+      kubectl create rolebinding $USER-$role --role=$role --serviceaccount=$NAMESPACE:$USER
+    else
+      echo "rolebinding "$USER-$role" already exists, patching..."
+      kubectl patch rolebinding $USER-$role --type='json' -p='[{"op": "add", "path": "/subjects/-", "value": {"kind": "ServiceAccount", "name": '$USER', "namespace": '$NAMESPACE' } }]'
+    fi
+  done
+fi
+
+echo
+echo "Generating kubeconfig for $USER@$NAMESPACE..."
+echo
+
+clustername=$(kubectl config view --minify -o jsonpath='{.clusters[].name}')
+ca=$(kubectl get secret $USER -o jsonpath='{.data.ca\.crt}' -n $NAMESPACE)
+token=$(kubectl get secret $USER -o jsonpath='{.data.token}' -n $NAMESPACE | base64 --decode)
+
+echo "apiVersion: v1
+kind: Config
+clusters:
+  - name: ${clustername}
+    cluster:
+      certificate-authority-data: ${ca}
+      server: ${ENDPOINT}
+contexts:
+  - name: ${USER}@${clustername}
+    context:
+      cluster: ${clustername}
+      namespace: ${NAMESPACE}
+      user: ${USER}
+users:
+  - name: ${USER}
+    user:
+      token: ${token}
+current-context: ${USER}@${clustername}
+" >"$USER@${clustername}.yaml"
+
+echo "Kubeconfig generated and saved to $USER@${clustername}.yaml"

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+org=$1
+repo=$2
+conclusion=${3:-failure}
+run_ids=$(gh api -X GET "repos/$org/$repo/actions/runs" -F "conclusion=$conclusion" --paginate | jq '.workflow_runs[] | .id')
+
+if [ -z "$run_ids" ]; then
+  echo "No runs found under $org/$repo"
+else
+  echo "Deleting $(echo $run_ids | wc -l) runs with conclusion=$conclusion under $org/$repo"
+  for run_id in $run_ids; do
+    echo "Deleting Run ID $run_id"
+    gh api -X DELETE "repos/$org/$repo/actions/runs/$run_id" -f conclusion=$conclusion >/dev/null
+  done
+fi

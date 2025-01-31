@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+#
+# https://stackoverflow.com/questions/52369247/namespace-stuck-as-terminating-how-do-i-remove-it
+#
+if [ -z "$1" ]; then
+  echo "Usage: $0 <namespace>"
+  exit 1
+fi
+
+kubectl proxy &
+kubectl get namespace $1 -o json | jq '.spec = {"finalizers":[]}' >/tmp/terminate-namespace.json
+curl -k -H "Content-Type: application/json" -X PUT --data-binary @/tmp/terminate-namespace.json 127.0.0.1:8001/api/v1/namespaces/$1/finalize
+kubectl delete namespace $1
+pgrep -f "kubectl proxy" | xargs kill
+rm /tmp/terminate-namespace.json

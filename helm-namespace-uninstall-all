@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+if [ -z "$1" ]; then
+  echo "Usage: $0 <namespace>"
+  exit 1
+fi
+
+helm list --no-headers --namespace $1 --output json | jq -r '.[] | .name' | xargs helm uninstall -n $1

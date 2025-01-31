@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#
+# https://docs.github.com/en/rest/packages/packages?apiVersion=2022-11-28#delete-a-package-for-an-organization
+#
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "Usage: $0 <org> <package>"
+  exit 1
+fi
+
+gh api -X DELETE "orgs/$1/packages/container/$2" --silent
+
+echo "view packages at https://github.com/orgs/$1/packages?repo_name=$2"

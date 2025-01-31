@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+  echo "pass a man page"
+  exit 1
+fi
+
+for page in "$@"; do
+  mandoc -T pdf "$(/usr/bin/man -w $page)" | open -fa Preview
+done

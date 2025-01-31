@@ -1,0 +1,38 @@
+#! /usr/bin/env sh
+#
+# https://docs.github.com/en/rest/packages/packages?apiVersion=2022-11-28#delete-a-package-for-an-organization
+#
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+  echo "Usage: $0 <org> <package_name> <package_type> <visibility>"
+  exit 1
+fi
+
+# List packages
+PACKAGES="$(
+  gh api \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    "/orgs/$1/packages?package_type=$3&visibility=$4" | jq -r '.[] | .name'
+)"
+
+if [ -z "$PACKAGES" ]; then
+  echo "No $4 $3 packages found for $1."
+  exit 1
+fi
+
+echo "about to delete $4 packages for $1:\n\n$PACKAGES\n\nAre you sure you want to delete these packages for $1? (y/n)"
+read -r CONFIRM
+if [ "$CONFIRM" != "y" ]; then
+  echo "Aborting"
+  exit 1
+fi
+
+# Delete package
+for PACKAGE in $PACKAGES; do
+  echo "Deleting $4 package $PACKAGE for $1"
+  gh api --silent \
+    --method DELETE \
+    -H "Accept: application/vnd.github+json" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    /orgs/$1/packages/$3/$PACKAGE
+done
