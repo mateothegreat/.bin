@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+
+brew cleanup --prune=all
+brew services cleanup
+brew autoremove
+mas upgrade

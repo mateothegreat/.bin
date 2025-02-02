@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+if [ -z "$1" ]; then
+  echo "Usage: $0 <app-name>"
+  exit 1
+fi
+
+# test if can sudo:
+if ! sudo -v; then
+  echo "Error: need sudo access to uninstall App Store apps"
+  exit 1
+fi
+
+while IFS= read -r app; do
+  id="$(echo "$app" | cut -d' ' -f1)"
+  name="$(echo "$app" | cut -d' ' -f2-)"
+  echo "Uninstalling $name ($id).."
+  sudo mas uninstall "$id"
+done < <(mas list | grep -i "$1")

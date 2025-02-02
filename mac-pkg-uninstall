@@ -1,0 +1,65 @@
+# #!/usr/bin/env bash
+
+. "$(dirname "${0}")/.lib/include.sh"
+
+cmd=$(basename "$0")
+parser_definition() {
+  setup REST help:usage -- "Usage: $cmd [options...] search-string" ''
+  msg -- 'Options:'
+  flag ALL -a --all -- "uninstall all matching pkgs"
+  disp :usage -h --help
+  disp VERSION --version
+}
+
+eval "$(getoptions parser_definition) exit 1"
+
+if [ -z "$1" ]; then
+  printf "No search string provided!\n\n"
+  usage
+  exit 1
+fi
+
+pkgs=$(pkgutil --pkgs | grep -iE "^$1$")
+
+if [ -z "$pkgs" ]; then
+  echo "No matching pkgs found!"
+  exit 1
+fi
+
+if [ "$ALL" == "1" ]; then
+  for pkg in $pkgs; do
+    echo "Preparing to uninstall $pkg (installed: $(date -r "${info[2]}")"
+  done
+  read -rp "Uninstall all matching pkgs? [y/n]: " confirm
+  if [ "$confirm" != "y" ]; then
+    exit 1
+  fi
+else
+  echo "Found $(echo "$pkgs" | wc -l | tr -d ' ') matching pkgs..."
+fi
+
+for pkg in $pkgs; do
+  name="$(echo "$pkg" | cut -d':' -f2)"
+
+  while IFS= read -r line; do
+    info+=("$line")
+  done <<<"$(pkgutil --pkg-info "$name" | grep -E 'volume:|location:|install-time:' | awk -F ': ' '{print $2}')"
+
+  if [ "$ALL" == "1" ]; then
+    echo "Uninstalling $name (installed: $(date -r "${info[2]}")"
+  else
+    read -rp "Uninstall $name (installed: $(date -r "${info[2]}"))}? [y/n]: " confirm
+    if [ "$confirm" != "y" ]; then
+      continue
+    fi
+  fi
+
+  cd "/${info[0]}${info[1]}" || {
+    echo "Failed to cd to ${info[0]}${info[1]}!"
+    exit 1
+  }
+
+  pkgutil --only-files --files "${name}" | tr '\n' '\0' | xargs -n 1 -0 sudo rm -if
+  pkgutil --only-dirs --files "${name}" | tr '\n' '\0' | xargs -n 1 -0 sudo rm -ifr
+  sudo pkgutil --forget "${name}" >/dev/null 2>&1
+done
