@@ -32,26 +32,27 @@ Options:
 
 ### Clone and open in editor
 
-Clones a repo into a given path and passes the path to the given command such as `cursor` or `vscode`.
+Clones a repo into a given path (if not passed it will use the name of the repo as the folder) and passes the path to the given command such as `cursor` or `vscode`.
 
 ```bash
-git-clone-open https://github.com/username/repo.git ~/code/repo vim
+Usage: git-clone-open <repo-url> <open-in-editor-command> [path]
 ```
 
 Example:
 
 ```bash
-➜  .bin git:(main) ✗ git-clone-open git@github.com:mateothegreat/transfer.sh.git ~/workspace/transfer.sh cursor
-Cloning git@github.com:mateothegreat/transfer.sh.git into /Users/matthewdavis/workspace/transfer.sh
-Cloning into '/Users/matthewdavis/workspace/transfer.sh'...
+➜  .bin git:(main) ✗ git-clone-open git@github.com:mateothegreat/transfer.sh.git cursor
+Cloning git@github.com:mateothegreat/transfer.sh.git into transfer.sh
+Cloning into 'transfer.sh'...
 remote: Enumerating objects: 14099, done.
 remote: Counting objects: 100% (89/89), done.
 remote: Compressing objects: 100% (45/45), done.
 remote: Total 14099 (delta 72), reused 44 (delta 44), pack-reused 14010 (from 3)
-Receiving objects: 100% (14099/14099), 34.02 MiB | 31.02 MiB/s, done.
+Receiving objects: 100% (14099/14099), 34.02 MiB | 25.73 MiB/s, done.
 Resolving deltas: 100% (6193/6193), done.
 
-Press Enter to open /Users/matthewdavis/workspace/transfer.sh in cursor...
+Opening transfer.sh in cursor...
+Press ENTER to continue:
 ```
 
 ## Mac

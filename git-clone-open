@@ -1,21 +1,26 @@
 #!/usr/bin/env bash
 
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
-  echo "Usage: $0 <repo-url> <path> <open-in-editor-command>"
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "Usage: ${0##*/} <repo-url> <open-in-editor-command> [path]"
   exit 1
 fi
 
-if [ -d "$2" ]; then
-  echo "Path $2 already exists!"
+if [ -z "$3" ]; then
+  path="$(echo "$1" | sed 's#.*/##;s/\.git$//')"
+else
+  path="$3"
+fi
+
+if [ -d "$path" ]; then
+  echo "Path $path already exists!"
   echo "Please remove it or choose a different path."
   exit 1
 fi
 
-echo "Cloning $1 into $2"
-git clone --recurse-submodules $1 $2
+echo "Cloning $1 into $path"
+git clone --recurse-submodules $1 $path
 
-echo "Opening $2 in $3.."
-echo "Press Enter to continue..."
+printf "\nOpening %s in %s...\nPress ENTER to continue:\n" "$path" "$2"
 read
 
-$3 $2
+$2 $path
