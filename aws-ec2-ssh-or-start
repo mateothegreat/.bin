@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+if [ -z "$1" ]; then
+  echo "Usage: $0 <instance-id>"
+  exit 1
+fi
+
+# Check if the instance is running
+aws ec2 describe-instances --instance-ids $1 --query 'Reservations[].Instances[].State.Name' --output text
+
+aws ec2 start-instances --instance-ids

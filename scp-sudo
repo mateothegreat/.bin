@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+if [ -z "$1" ]; then
+  echo "usage: $0 <local-dir> <host> <remote-dir>"
+  exit 1
+fi
+
+rsync -avzp --chmod=ugo=rwx --inplace --rsync-path="sudo rsync" "$1" "$2":"$3"

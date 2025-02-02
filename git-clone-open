@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+  echo "Usage: $0 <repo-url> <path> <open-in-editor-command>"
+  exit 1
+fi
+
+if [ -d "$2" ]; then
+  echo "Path $2 already exists!"
+  echo "Please remove it or choose a different path."
+  exit 1
+fi
+
+echo "Cloning $1 into $2"
+git clone --recurse-submodules $1 $2
+
+echo "Opening $2 in $3.."
+echo "Press Enter to continue..."
+read
+
+$3 $2

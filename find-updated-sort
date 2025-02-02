@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "Usage: $0 <directory> <output.json>"
+  exit 1
+fi
+
+if [ -e "$2" ]; then
+  rm "$2"
+fi
+
+results=$(find "$1" -maxdepth 1 -type d -mtime +180 | while read -r dir; do
+  modified_date=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S %Z" "$dir")
+  size=$(du -sh "$dir" | cut -f1)
+  file_count=$(find "$dir" -type f | wc -l | tr -d ' ')
+  printf '{"modified": "%s","path": "%s","size": "%s","files": %s},' "$modified_date" "$dir" "$size" "$file_count"
+done | sort -t'"' -k3,3)
+
+str=""
+for result in $results; do
+  str="$str$result"
+done
+
+echo '[' >"$2"
+echo "$str" | sed '$ s/,$//' >>"$2"
+echo ']' >>"$2"
+
+echo "JSON output written to $2"
