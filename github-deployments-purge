@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+org=$1
+repo=$2
+deployment_ids=$(gh api -X GET "repos/$org/$repo/deployments" --paginate | jq '.[] | .id')
+
+if [ -z "$deployment_ids" ]; then
+  echo "No deployments found under $org/$repo"
+else
+  echo "Deleting $(echo $deployment_ids | wc -l) deployments under $org/$repo"
+  for deployment_id in $deployment_ids; do
+    echo "Deleting Deployment ID $deployment_id"
+    gh api -X DELETE "repos/$org/$repo/deployments/$deployment_id"
+  done
+fi
