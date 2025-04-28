@@ -1,0 +1,117 @@
+#!/bin/bash
+
+. "$(dirname "$0")/.lib/include.sh"
+
+set -eu
+
+parser_definition() {
+  setup REST help:usage abbr:true -- "Usage: ${2##*/} [global options...] [command] [options...] [arguments...]"
+  msg -- 'Options:'
+  flag VERBOSE -v --verbose -- "takes no arguments"
+  param PROFILE -p --profile -- "aws profile"
+  param REGION -r --region -- "region"
+  param NAME -n --name -- "cluster name"
+  disp :usage -h --help
+  disp VERSION --version
+}
+
+eval "$(getoptions parser_definition) exit 1"
+
+# Map the parsed NAME parameter to CLUSTER_NAME for compatibility.
+
+if [ $# -eq 0 ]; then
+  echo "PARAMS: $# (none)"
+else
+  echo "PARAMS: $#"
+  for i in "$@"; do
+    printf '%s %s\n' - "$i"
+  done
+fi
+
+if [ -z "$PROFILE" ]; then
+  export AWS_PROFILE="pearl-dev"
+fi
+
+if [ -z "$REGION" ]; then
+  export AWS_REGION="us-east-1"
+fi
+
+if [ -z "$NAME" ]; then
+  echo "CLUSTER_NAME is not set"
+  exit 1
+fi
+
+node_groups=$(aws eks list-nodegroups --cluster-name "$NAME")
+
+echo "$node_groups"
+
+for node_group in $(echo "$node_groups" | jq -r '.nodegroups[]'); do
+  echo "Deleting node group: $node_group"
+  aws eks delete-nodegroup --cluster-name "$NAME" --nodegroup-name "$node_group"
+done
+
+# Poll until the EKS cluster is deleted.
+#
+# This loop checks the cluster status every 10 seconds and continues until the cluster is no longer found.
+# It provides clear, friendly output for each polling attempt.
+#
+# Debugging output is preserved and enhanced for clarity.
+
+echo "Initiating deletion of EKS cluster: $NAME"
+aws eks delete-cluster --name "$NAME"
+
+echo "Polling for cluster deletion status..."
+
+while true; do
+  # Attempt to describe the cluster; capture output and status.
+  describe_output=$(aws eks describe-cluster --name "$NAME" 2>&1)
+  status=$?
+
+  if [ $status -ne 0 ]; then
+    if echo "$describe_output" | grep -q "ResourceNotFoundException"; then
+      echo "Cluster '$NAME' has been deleted successfully."
+      break
+    else
+      echo "Error while polling cluster status:"
+      echo "$describe_output"
+      echo "Retrying in 10 seconds..."
+    fi
+  else
+    cluster_status=$(echo "$describe_output" | jq -r '.cluster.status')
+    echo "Current cluster status: $cluster_status"
+    if [ "$cluster_status" = "DELETING" ]; then
+      echo "Cluster is still being deleted. Waiting 10 seconds..."
+    else
+      echo "Cluster status: $cluster_status (unexpected). Waiting 10 seconds..."
+    fi
+  fi
+
+  sleep 3
+done
+
+while true; do
+  # Attempt to describe the cluster; capture output and status.
+  describe_output=$(aws eks describe-cluster --name "$NAME" 2>&1)
+  status=$?
+
+  if [ $status -ne 0 ]; then
+    if echo "$describe_output" | grep -q "ResourceNotFoundException"; then
+      echo "Cluster '$NAME' has been deleted successfully."
+      break
+    else
+      echo "Error while polling cluster status:"
+      echo "$describe_output"
+      echo "Retrying in 10 seconds..."
+    fi
+  else
+    cluster_status=$(echo "$describe_output" | jq -r '.cluster.status')
+    echo "Current cluster status: $cluster_status"
+    if [ "$cluster_status" = "DELETING" ]; then
+      echo "Cluster is still being deleted. Waiting 10 seconds..."
+    else
+      echo "Cluster status: $cluster_status (unexpected). Waiting 10 seconds..."
+    fi
+  fi
+
+  sleep 3
+done

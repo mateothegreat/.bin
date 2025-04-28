@@ -8,7 +8,8 @@ parser_definition() {
   setup REST help:usage abbr:true -- "Usage: ${2##*/} [global options...] [command] [options...] [arguments...]"
   msg -- 'Options:'
   flag VERBOSE -v --verbose -- "takes no arguments"
-  param NUMBER -c --command pattern:"probe|encode" -- "takes one argument"
+  param COMMAND -c --command pattern:"probe|encode" -- "takes one argument"
+  param URI -u --uri -- "takes one argument"
   option CAMERA -c --camera on:"default" -- "takes one optional argument"
   disp :usage -h --help
   disp VERSION --version
@@ -16,11 +17,11 @@ parser_definition() {
 
 eval "$(getoptions parser_definition) exit 1"
 
-if [ "$REST" = "probe" ]; then
+if [ "$COMMAND" = "probe" ]; then
   if [ -n "$VERBOSE" ]; then
-    ffprobe -rtsp_transport tcp "$1" -v error -print_format json -show_format -show_streams | jq '.streams[] | {codec_name, codec_long_name, profile_name, width, height, r_frame_rate, avg_frame_rate, duration, bit_rate, nb_frames, nb_read_frames, nb_read_packets, nb_read_bytes, nb_write_frames, nb_write_packets, nb_write_bytes, start_pts, start_time, duration_ts, duration_time, disposition}'
+    ffprobe -rtsp_transport tcp "$URI" -v error -print_format json -show_format -show_streams | jq '.streams[] | {codec_name, codec_long_name, profile_name, width, height, r_frame_rate, avg_frame_rate, duration, bit_rate, nb_frames, nb_read_frames, nb_read_packets, nb_read_bytes, nb_write_frames, nb_write_packets, nb_write_bytes, start_pts, start_time, duration_ts, duration_time, disposition}'
   else
-    ffprobe -rtsp_transport tcp "$1" -v error -print_format json -show_format -show_streams
+    ffprobe -rtsp_transport tcp "$URI" -v error -print_format json -show_format -show_streams
   fi
 fi
 

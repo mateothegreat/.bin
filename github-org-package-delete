@@ -2,11 +2,16 @@
 #
 # https://docs.github.com/en/rest/packages/packages?apiVersion=2022-11-28#delete-a-package-for-an-organization
 #
-if [ -z "$1" ] || [ -z "$2" ]; then
-  echo "Usage: $0 <org> <package>"
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+  echo "Usage: $0 <org> <type> <name>"
   exit 1
 fi
 
-gh api -X DELETE "orgs/$1/packages/container/$2" --silent
+gh api -X DELETE "orgs/$1/packages/$2/$3" --silent
 
-echo "view packages at https://github.com/orgs/$1/packages?repo_name=$2"
+for release in $(gh api -X GET "/repos/$1/$3/releases" -f per_page=100 | jq -r '.[].id'); do
+  echo "deleting release $release"
+  gh api -X DELETE "repos/$1/$3/releases/$release" --silent
+done
+
+echo "view packages at https://github.com/orgs/$1/packages?repo_name=$3"
